@@ -125,6 +125,13 @@ BEGIN
                 inc.dv_subcategory,
                 inc.dv_u_detail_subcategory,
                 inc.u_tipo_indisponibilidade,
+                task.u_tipo_acionamento,
+                task.u_operadora_integrador,
+                task.u_produto,
+                task.u_protocolo,
+                task.opened_at AS abertura_task,
+                task.closed_at AS encerramento_task,
+                task.u_designa_o_lp,
                 ROW_NUMBER() OVER (
                     PARTITION BY inc.number 
                     ORDER BY 
