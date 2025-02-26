@@ -16,7 +16,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Carrega as variáveis de ambiente do arquivo .env
-load_dotenv()
+env_path = os.path.join(Path(__file__).resolve().parent.parent, ".env")
+load_dotenv(env_path)
+
+# Força o carregamento das variáveis de ambiente antes de qualquer configuração
+load_dotenv(override=True)
+
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv(os.path.join(Path(__file__).resolve().parent.parent, ".env"))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -82,8 +89,8 @@ TEMPLATES = [
             "context_processors": [
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
-                "django.template.context_processors.auth",
-                "django.template.context_processors.messages",
+                "django.contrib.auth.context_processors.auth",  # Corrigido
+                "django.contrib.messages.context_processors.messages",  # Corrigido
             ],
         },
     },
@@ -93,12 +100,22 @@ WSGI_APPLICATION = "app.wsgi.application"
 
 
 # Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT'),
+        'OPTIONS': {
+            'sslmode': 'disable',
+        },
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -117,7 +134,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
@@ -129,7 +145,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
-
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
@@ -139,7 +154,6 @@ MEDIA_ROOT = BASE_DIR / "cadastro/arquivos"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "access.User"
@@ -195,21 +209,5 @@ REST_FRAMEWORK = {
 
 # Configurações do Django Filter
 FILTERS_DEFAULT_LOOKUP_EXPR = "icontains"
-
-# Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "postgres"),
-        "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "5432"),
-        "OPTIONS": {
-            "options": "-c statement_timeout=10000",
-            "target_session_attrs": "read-write",
-        },
-    }
-}
 
 CSRF_TRUSTED_ORIGINS = ["https://api-avaliacao-incidentes.gestri.com.br"]

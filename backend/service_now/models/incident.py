@@ -844,11 +844,13 @@ class Incident(models.Model):
     u_rpt_tempo_de_processamento_da_automacao_ate_abertura_do_ticket = models.DateTimeField(
         null=True,
         help_text="Tempo de processamento da automação até a abertura do ticket",
+        db_column='u_rpt_tempo_proc_autom_ticket'  # Nome encurtado
     )
     dv_u_rpt_tempo_de_processamento_da_automacao_ate_abertura_do_ticket = models.CharField(
         max_length=255,
         null=True,
         help_text="Descrição do tempo de processamento da automação até a abertura do ticket",
+        db_column='dv_u_rpt_tempo_proc_autom_ticket'  # Nome encurtado
     )
     u_rpt_tempo_detecao_hora = models.DateTimeField(
         null=True, help_text="Tempo de detecção em horas"
