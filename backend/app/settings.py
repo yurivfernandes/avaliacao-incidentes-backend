@@ -35,7 +35,11 @@ SECRET_KEY = (
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["api-avaliacao-incidentes.gestri.com.br"]
+ALLOWED_HOSTS = [
+    "api-avaliacao-incidentes.gestri.com.br",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # Application definition
@@ -96,15 +100,15 @@ WSGI_APPLICATION = "app.wsgi.application"
 
 # Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),
-        'PORT': os.environ.get('DB_PORT'),
-        'OPTIONS': {
-            'sslmode': 'disable',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME"),
+        "USER": os.environ.get("DB_USER"),
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
+        "HOST": os.environ.get("DB_HOST"),
+        "PORT": os.environ.get("DB_PORT"),
+        "OPTIONS": {
+            "sslmode": "disable",
         },
     }
 }
