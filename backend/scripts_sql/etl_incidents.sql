@@ -95,64 +95,42 @@ BEGIN
     MERGE dw_analytics.f_incident AS target
     USING (
         SELECT 
-            DedupedIncidents.*,
-            task.u_tipo_acionamento,
-            task.u_operadora_integrador,
-            task.u_produto,
-            task.u_protocolo,
-            task.opened_at AS abertura_task,
-            task.closed_at AS encerramento_task,
-            task.u_designa_o_lp
-        FROM (
-            SELECT 
-                inc.number,
-                inc.resolved_by,
-                inc.assignment_group,
-                inc.opened_at,
-                inc.closed_at,
-                inc.contract,
-                sla_first.has_breached as sla_atendimento,
-                sla_resolved.has_breached as sla_resolucao,
-                inc.company,
-                inc.u_origem,
-                inc.dv_u_categoria_da_falha,
-                inc.dv_u_sub_categoria_da_falha,
-                inc.dv_u_detalhe_sub_categoria_da_falha,
-                inc.dv_state,
-                inc.u_id_vgr,
-                inc.u_id_vantive,
-                inc.dv_category,
-                inc.dv_subcategory,
-                inc.dv_u_detail_subcategory,
-                inc.u_tipo_indisponibilidade,
-                inc.sys_id,
-                ROW_NUMBER() OVER (
-                    PARTITION BY inc.number 
-                    ORDER BY 
-                        CASE 
-                            WHEN inc.dv_state IN ('Encerrado', 'Closed') THEN 0
-                            ELSE 1
-                        END,
-                        inc.sys_id
-                ) as rn
-            FROM SERVICE_NOW.dbo.incident inc
-            LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_first 
-                ON inc.sys_id = sla_first.task 
-                AND (sla_first.dv_sla LIKE '%VITA] FIRST%' or sla_first.dv_sla LIKE '%VGR] SLA Atendimento%')
-            LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_resolved 
-                ON inc.sys_id = sla_resolved.task 
-                AND (sla_resolved.dv_sla LIKE '%VITA] RESOLVED%' or sla_resolved.dv_sla LIKE '%VGR] SLA Resolução%')
-            WHERE inc.number IS NOT NULL
-                AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
-        ) AS DedupedIncidents
-        LEFT JOIN SERVICE_NOW.dbo.incident_task task
-            ON DedupedIncidents.sys_id = task.incident
-        WHERE rn = 1
+            inc.number,
+            inc.sys_id,
+            inc.resolved_by,
+            inc.assignment_group,
+            inc.opened_at,
+            inc.closed_at,
+            inc.contract,
+            sla_first.has_breached as sla_atendimento,
+            sla_resolved.has_breached as sla_resolucao,
+            inc.company,
+            inc.u_origem,
+            inc.dv_u_categoria_da_falha,
+            inc.dv_u_sub_categoria_da_falha,
+            inc.dv_u_detalhe_sub_categoria_da_falha,
+            inc.dv_state,
+            inc.u_id_vgr,
+            inc.u_id_vantive,
+            inc.dv_category,
+            inc.dv_subcategory,
+            inc.dv_u_detail_subcategory,
+            inc.u_tipo_indisponibilidade
+        FROM SERVICE_NOW.dbo.incident inc
+        LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_first 
+            ON inc.sys_id = sla_first.task 
+            AND (sla_first.dv_sla LIKE '%VITA] FIRST%' or sla_first.dv_sla LIKE '%VGR] SLA Atendimento%')
+        LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_resolved 
+            ON inc.sys_id = sla_resolved.task 
+            AND (sla_resolved.dv_sla LIKE '%VITA] RESOLVED%' or sla_resolved.dv_sla LIKE '%VGR] SLA Resolução%')
+        WHERE inc.number IS NOT NULL
+            AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
     ) AS source
     ON target.number = source.number
     WHEN MATCHED THEN
         UPDATE SET
             resolved_by = source.resolved_by,
+            sys_id = source.sys_id,
             assignment_group = source.assignment_group,
             opened_at = source.opened_at,
             closed_at = source.closed_at,
@@ -170,26 +148,17 @@ BEGIN
             dv_category = source.dv_category,
             dv_subcategory = source.dv_subcategory,
             dv_u_detail_subcategory = source.dv_u_detail_subcategory,
-            u_tipo_indisponibilidade = source.u_tipo_indisponibilidade,
-            u_tipo_acionamento = source.u_tipo_acionamento,
-            u_operadora_integrador = source.u_operadora_integrador,
-            u_produto = source.u_produto,
-            u_protocolo = source.u_protocolo,
-            abertura_task = source.abertura_task,
-            encerramento_task = source.encerramento_task,
-            u_designa_o_lp = source.u_designa_o_lp
+            u_tipo_indisponibilidade = source.u_tipo_indisponibilidade
     WHEN NOT MATCHED THEN
         INSERT (
-            number, resolved_by, assignment_group, opened_at, closed_at,
+            number, sys_id, resolved_by, assignment_group, opened_at, closed_at,
             contract, sla_atendimento, sla_resolucao, company,
             u_origem, dv_u_categoria_da_falha, dv_u_sub_categoria_da_falha,
             dv_u_detalhe_sub_categoria_da_falha, dv_state, u_id_vgr, u_id_vantive,
-            dv_category, dv_subcategory, dv_u_detail_subcategory, u_tipo_indisponibilidade,
-            u_tipo_acionamento, u_operadora_integrador, u_produto, u_protocolo,
-            abertura_task, encerramento_task, u_designa_o_lp
+            dv_category, dv_subcategory, dv_u_detail_subcategory, u_tipo_indisponibilidade
         )
         VALUES (
-            source.number, source.resolved_by, source.assignment_group,
+            source.number, source.sys_id, source.resolved_by, source.assignment_group,
             source.opened_at, source.closed_at, source.contract,
             source.sla_atendimento, source.sla_resolucao, source.company,
             source.u_origem, source.dv_u_categoria_da_falha,
@@ -197,10 +166,22 @@ BEGIN
             source.dv_u_detalhe_sub_categoria_da_falha,
             source.dv_state, source.u_id_vgr, source.u_id_vantive,
             source.dv_category, source.dv_subcategory, source.dv_u_detail_subcategory,
-            source.u_tipo_indisponibilidade, source.u_tipo_acionamento,
-            source.u_operadora_integrador, source.u_produto, source.u_protocolo,
-            source.abertura_task, source.encerramento_task, source.u_designa_o_lp
+            source.u_tipo_indisponibilidade
         );
+
+-- Adicionar coluna sys_id na tabela f_incident
+ALTER TABLE dw_analytics.f_incident
+ADD sys_id NVARCHAR(255);
+
+-- Script para remover as colunas da task
+ALTER TABLE dw_analytics.f_incident
+DROP COLUMN u_tipo_acionamento,
+    u_operadora_integrador,
+    u_produto,
+    u_protocolo,
+    abertura_task,
+    encerramento_task,
+    u_designa_o_lp;
 
 ---***ATUALIZA OS ULTIMOS 10 DIAS DA TABELA DE LOCALIDADES DO SAE
 
