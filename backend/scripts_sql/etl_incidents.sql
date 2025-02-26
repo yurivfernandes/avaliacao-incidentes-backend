@@ -95,13 +95,13 @@ BEGIN
     MERGE dw_analytics.f_incident AS target
     USING (
         SELECT 
-            number, resolved_by, assignment_group, opened_at, closed_at,
-            contract, sla_atendimento, sla_resolucao, company,
-            u_origem, dv_u_categoria_da_falha, dv_u_sub_categoria_da_falha,
-            dv_u_detalhe_sub_categoria_da_falha, dv_state, u_id_vgr, u_id_vantive,
-            dv_category, dv_subcategory, dv_u_detail_subcategory, u_tipo_indisponibilidade,
-            task.u_tipo_acionamento, task.u_operadora_integrador, task.u_produto,
-            task.u_protocolo, task.opened_at AS abertura_task, task.closed_at AS encerramento_task,
+            DedupedIncidents.*,
+            task.u_tipo_acionamento,
+            task.u_operadora_integrador,
+            task.u_produto,
+            task.u_protocolo,
+            task.opened_at AS abertura_task,
+            task.closed_at AS encerramento_task,
             task.u_designa_o_lp
         FROM (
             SELECT 
@@ -125,13 +125,7 @@ BEGIN
                 inc.dv_subcategory,
                 inc.dv_u_detail_subcategory,
                 inc.u_tipo_indisponibilidade,
-                task.u_tipo_acionamento,
-                task.u_operadora_integrador,
-                task.u_produto,
-                task.u_protocolo,
-                task.opened_at AS abertura_task,
-                task.closed_at AS encerramento_task,
-                task.u_designa_o_lp,
+                inc.sys_id,
                 ROW_NUMBER() OVER (
                     PARTITION BY inc.number 
                     ORDER BY 
@@ -148,11 +142,11 @@ BEGIN
             LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_resolved 
                 ON inc.sys_id = sla_resolved.task 
                 AND (sla_resolved.dv_sla LIKE '%VITA] RESOLVED%' or sla_resolved.dv_sla LIKE '%VGR] SLA Resolução%')
-            LEFT JOIN SERVICE_NOW.dbo.incident_task task
-                ON inc.sys_id = task.incident
             WHERE inc.number IS NOT NULL
                 AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
         ) AS DedupedIncidents
+        LEFT JOIN SERVICE_NOW.dbo.incident_task task
+            ON DedupedIncidents.sys_id = task.incident
         WHERE rn = 1
     ) AS source
     ON target.number = source.number
