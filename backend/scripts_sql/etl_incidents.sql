@@ -99,8 +99,11 @@ BEGIN
             number, resolved_by, assignment_group, opened_at, closed_at,
             contract, sla_atendimento, sla_resolucao, company,
             u_origem, dv_u_categoria_da_falha, dv_u_sub_categoria_da_falha,
-            dv_u_detalhe_sub_categoria_da_falha, dv_state,u_id_vgr, u_id_vantive,
-            dv_category,dv_subcategory,dv_u_detail_subcategory, u_tipo_indisponibilidade
+            dv_u_detalhe_sub_categoria_da_falha, dv_state, u_id_vgr, u_id_vantive,
+            dv_category, dv_subcategory, dv_u_detail_subcategory, u_tipo_indisponibilidade,
+            task.u_tipo_acionamento, task.u_operadora_integrador, task.u_produto,
+            task.u_protocolo, task.opened_at AS abertura_task, task.closed_at AS encerramento_task,
+            task.u_designa_o_lp, task.u_operadora_integrador
         FROM (
             SELECT 
                 inc.number,
@@ -139,7 +142,8 @@ BEGIN
             LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_resolved 
                 ON inc.sys_id = sla_resolved.task 
                 AND (sla_resolved.dv_sla LIKE '%VITA] RESOLVED%' or sla_resolved.dv_sla LIKE '%VGR] SLA Resolução%')
-
+            LEFT JOIN SERVICE_NOW.dbo.incident_task task
+                ON inc.sys_id = task.incident
             WHERE inc.number IS NOT NULL
                 --AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
         ) AS DedupedIncidents
@@ -160,31 +164,42 @@ BEGIN
             dv_u_categoria_da_falha = source.dv_u_categoria_da_falha,
             dv_u_sub_categoria_da_falha = source.dv_u_sub_categoria_da_falha,
             dv_u_detalhe_sub_categoria_da_falha = source.dv_u_detalhe_sub_categoria_da_falha,
-            dv_state = SOURCE.dv_state,
-            u_id_vgr = SOURCE.u_id_vgr,
-            u_id_vantive=SOURCE.u_id_vantive,
-            dv_category=SOURCE.dv_category,
-            dv_subcategory=SOURCE.dv_subcategory,
-            dv_u_detail_subcategory=SOURCE.dv_u_detail_subcategory,
-            u_tipo_indisponibilidade=SOURCE.u_tipo_indisponibilidade
+            dv_state = source.dv_state,
+            u_id_vgr = source.u_id_vgr,
+            u_id_vantive = source.u_id_vantive,
+            dv_category = source.dv_category,
+            dv_subcategory = source.dv_subcategory,
+            dv_u_detail_subcategory = source.dv_u_detail_subcategory,
+            u_tipo_indisponibilidade = source.u_tipo_indisponibilidade,
+            u_tipo_acionamento = source.u_tipo_acionamento,
+            u_operadora_integrador = source.u_operadora_integrador,
+            u_produto = source.u_produto,
+            u_protocolo = source.u_protocolo,
+            abertura_task = source.abertura_task,
+            encerramento_task = source.encerramento_task,
+            u_designa_o_lp = source.u_designa_o_lp
     WHEN NOT MATCHED THEN
         INSERT (
             number, resolved_by, assignment_group, opened_at, closed_at,
             contract, sla_atendimento, sla_resolucao, company,
             u_origem, dv_u_categoria_da_falha, dv_u_sub_categoria_da_falha,
-            dv_u_detalhe_sub_categoria_da_falha, dv_state, u_id_vgr,u_id_vantive,
-            dv_category,dv_subcategory,dv_u_detail_subcategory,u_tipo_indisponibilidade
+            dv_u_detalhe_sub_categoria_da_falha, dv_state, u_id_vgr, u_id_vantive,
+            dv_category, dv_subcategory, dv_u_detail_subcategory, u_tipo_indisponibilidade,
+            u_tipo_acionamento, u_operadora_integrador, u_produto, u_protocolo,
+            abertura_task, encerramento_task, u_designa_o_lp
         )
         VALUES (
             source.number, source.resolved_by, source.assignment_group,
             source.opened_at, source.closed_at, source.contract,
-  source.sla_atendimento, source.sla_resolucao, source.company,
+            source.sla_atendimento, source.sla_resolucao, source.company,
             source.u_origem, source.dv_u_categoria_da_falha,
             source.dv_u_sub_categoria_da_falha,
             source.dv_u_detalhe_sub_categoria_da_falha,
-            source.dv_state,source.u_id_vgr,source.u_id_vantive,
-            source.dv_category,source.dv_subcategory,source.dv_u_detail_subcategory,
-            source.u_tipo_indisponibilidade
+            source.dv_state, source.u_id_vgr, source.u_id_vantive,
+            source.dv_category, source.dv_subcategory, source.dv_u_detail_subcategory,
+            source.u_tipo_indisponibilidade, source.u_tipo_acionamento,
+            source.u_operadora_integrador, source.u_produto, source.u_protocolo,
+            source.abertura_task, source.encerramento_task, source.u_designa_o_lp
         );
 END;
 
