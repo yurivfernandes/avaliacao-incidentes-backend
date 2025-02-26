@@ -103,7 +103,7 @@ BEGIN
             dv_category, dv_subcategory, dv_u_detail_subcategory, u_tipo_indisponibilidade,
             task.u_tipo_acionamento, task.u_operadora_integrador, task.u_produto,
             task.u_protocolo, task.opened_at AS abertura_task, task.closed_at AS encerramento_task,
-            task.u_designa_o_lp, task.u_operadora_integrador
+            task.u_designa_o_lp
         FROM (
             SELECT 
                 inc.number,
