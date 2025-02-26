@@ -99,7 +99,8 @@ BEGIN
             number, resolved_by, assignment_group, opened_at, closed_at,
             contract, sla_atendimento, sla_resolucao, company,
             u_origem, dv_u_categoria_da_falha, dv_u_sub_categoria_da_falha,
-            dv_u_detalhe_sub_categoria_da_falha
+            dv_u_detalhe_sub_categoria_da_falha, dv_state,u_id_vgr, u_id_vantive,
+            dv_category,dv_subcategory,dv_u_detail_subcategory, u_tipo_indisponibilidade
         FROM (
             SELECT 
                 inc.number,
@@ -115,6 +116,13 @@ BEGIN
                 inc.dv_u_categoria_da_falha,
                 inc.dv_u_sub_categoria_da_falha,
                 inc.dv_u_detalhe_sub_categoria_da_falha,
+                inc.dv_state,
+                inc.u_id_vgr,
+                inc.u_id_vantive,
+                inc.dv_category,
+                inc.dv_subcategory,
+                inc.dv_u_detail_subcategory,
+                inc.u_tipo_indisponibilidade,
                 ROW_NUMBER() OVER (
                     PARTITION BY inc.number 
                     ORDER BY 
@@ -127,12 +135,13 @@ BEGIN
             FROM SERVICE_NOW.dbo.incident inc
             LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_first 
                 ON inc.sys_id = sla_first.task 
-                AND sla_first.dv_sla LIKE '%VITA] FIRST%'
+                AND (sla_first.dv_sla LIKE '%VITA] FIRST%' or sla_first.dv_sla LIKE '%VGR] SLA Atendimento%')
             LEFT JOIN SERVICE_NOW.dbo.incident_sla sla_resolved 
                 ON inc.sys_id = sla_resolved.task 
-                AND sla_resolved.dv_sla LIKE '%VITA] RESOLVED%'
+                AND (sla_resolved.dv_sla LIKE '%VITA] RESOLVED%' or sla_resolved.dv_sla LIKE '%VGR] SLA Resolução%')
+
             WHERE inc.number IS NOT NULL
-                AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
+                --AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
         ) AS DedupedIncidents
         WHERE rn = 1
     ) AS source
@@ -150,21 +159,32 @@ BEGIN
             u_origem = source.u_origem,
             dv_u_categoria_da_falha = source.dv_u_categoria_da_falha,
             dv_u_sub_categoria_da_falha = source.dv_u_sub_categoria_da_falha,
-            dv_u_detalhe_sub_categoria_da_falha = source.dv_u_detalhe_sub_categoria_da_falha
+            dv_u_detalhe_sub_categoria_da_falha = source.dv_u_detalhe_sub_categoria_da_falha,
+            dv_state = SOURCE.dv_state,
+            u_id_vgr = SOURCE.u_id_vgr,
+            u_id_vantive=SOURCE.u_id_vantive,
+            dv_category=SOURCE.dv_category,
+            dv_subcategory=SOURCE.dv_subcategory,
+            dv_u_detail_subcategory=SOURCE.dv_u_detail_subcategory,
+            u_tipo_indisponibilidade=SOURCE.u_tipo_indisponibilidade
     WHEN NOT MATCHED THEN
         INSERT (
             number, resolved_by, assignment_group, opened_at, closed_at,
             contract, sla_atendimento, sla_resolucao, company,
             u_origem, dv_u_categoria_da_falha, dv_u_sub_categoria_da_falha,
-            dv_u_detalhe_sub_categoria_da_falha
+            dv_u_detalhe_sub_categoria_da_falha, dv_state, u_id_vgr,u_id_vantive,
+            dv_category,dv_subcategory,dv_u_detail_subcategory,u_tipo_indisponibilidade
         )
         VALUES (
             source.number, source.resolved_by, source.assignment_group,
             source.opened_at, source.closed_at, source.contract,
-            source.sla_atendimento, source.sla_resolucao, source.company,
+  source.sla_atendimento, source.sla_resolucao, source.company,
             source.u_origem, source.dv_u_categoria_da_falha,
             source.dv_u_sub_categoria_da_falha,
-            source.dv_u_detalhe_sub_categoria_da_falha
+            source.dv_u_detalhe_sub_categoria_da_falha,
+            source.dv_state,source.u_id_vgr,source.u_id_vantive,
+            source.dv_category,source.dv_subcategory,source.dv_u_detail_subcategory,
+            source.u_tipo_indisponibilidade
         );
 END;
 
