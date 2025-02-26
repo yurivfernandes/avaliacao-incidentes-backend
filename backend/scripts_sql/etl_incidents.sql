@@ -1,7 +1,4 @@
--- Procedimento armazenado para ETL de incidentes do Service Now
--- Este procedimento realiza a extração, transformação e carga (ETL) dos dados de incidentes do sistema Service Now para o data warehouse.
-
-CREATE PROC PROC_ETL_INCIDENTES_SERVICE_NOW
+CREATE PROC [dbo].[PROC_ETL_INCIDENTES_SERVICE_NOW]
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -84,13 +81,15 @@ BEGIN
         AND inc.assignment_group IS NOT NULL
         AND inc.resolved_by != ''
         AND inc.assignment_group != ''
-        AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
+       	AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
     ) AS SubQuery
     WHERE rn = 1;
 
     -- Apagar incidentes abertos e fechados nos últimos 10 dias
     DELETE FROM dw_analytics.f_incident
-    WHERE opened_at >= @data_corte OR closed_at >= @data_corte;
+
+	--WHERE opened_at >= @data_corte OR closed_at >= @data_corte;
+	
 
     -- Inserir ou atualizar Incidents na tabela fato
     MERGE dw_analytics.f_incident AS target
@@ -145,7 +144,7 @@ BEGIN
             LEFT JOIN SERVICE_NOW.dbo.incident_task task
                 ON inc.sys_id = task.incident
             WHERE inc.number IS NOT NULL
-                --AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
+                AND (inc.opened_at >= @data_corte OR inc.closed_at >= @data_corte)
         ) AS DedupedIncidents
         WHERE rn = 1
     ) AS source
@@ -201,5 +200,28 @@ BEGIN
             source.u_operadora_integrador, source.u_produto, source.u_protocolo,
             source.abertura_task, source.encerramento_task, source.u_designa_o_lp
         );
-END;
 
+---***ATUALIZA OS ULTIMOS 10 DIAS DA TABELA DE LOCALIDADES DO SAE
+
+
+DELETE FROM POWER_BI.dw_analytics.f_sae_localidades WHERE DATA_RFB >= CONVERT(DATE,DATEADD(DAY,-10,GETDATE()))
+
+INSERT dw_analytics.f_sae_localidades
+SELECT
+*
+FROM
+OPENQUERY([10.128.223.125],
+	'SELECT DISTINCT
+		ID_VANTIVE,
+		UF,
+		CIDADE,
+		DATA_RFB
+	FROM 
+		LK_RELATORIO_12.SAE.SAE.TB_PEDIDOS_DADOS with (nolock)
+	WHERE
+		STATUS_VANTIVE IN (''RFS Faturável'',''RFS Técnico'', ''RFS Não Faturável'')
+		AND
+		DATA_RFB >= CONVERT(DATE,DATEADD(DAY,-10,GETDATE()))
+')
+
+END;
