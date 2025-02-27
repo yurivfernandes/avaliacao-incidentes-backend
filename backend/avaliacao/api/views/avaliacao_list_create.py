@@ -5,18 +5,22 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ...models import Avaliacao
-from ..serializers import AvaliacaoSerializer
+from ..serializers import AvaliacaoCreateSerializer, AvaliacaoSerializer
 
 
 class CustomPageNumberPagination(PageNumberPagination):
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 1000
 
 
 class AvaliacaoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = AvaliacaoSerializer
     pagination_class = CustomPageNumberPagination
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return AvaliacaoCreateSerializer
+        return AvaliacaoSerializer
 
     def get_queryset(self):
         queryset = Avaliacao.objects.select_related("user", "incident")

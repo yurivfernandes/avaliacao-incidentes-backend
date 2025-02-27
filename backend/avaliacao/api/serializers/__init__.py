@@ -1,3 +1,4 @@
+from .avaliacao_create_serializer import AvaliacaoCreateSerializer
 from .avaliacao_serializer import AvaliacaoSerializer
 from .dashboard_serializer import DashboardSerializer
 from .item_critico_serializer import ItemCriticoSerializer
@@ -12,4 +13,5 @@ __all__ = [
     "ItemStatSerializer",
     "NotaPorTecnicoSerializer",
     "TecnicoNotaSerializer",
+    "AvaliacaoCreateSerializer",
 ]
