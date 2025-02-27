@@ -8,10 +8,15 @@ from ...models import Avaliacao
 from ..serializers import AvaliacaoSerializer
 
 
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
+
 class AvaliacaoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = AvaliacaoSerializer
-    pagination_class = PageNumberPagination
+    pagination_class = CustomPageNumberPagination
 
     def get_queryset(self):
         queryset = Avaliacao.objects.select_related("user", "incident")

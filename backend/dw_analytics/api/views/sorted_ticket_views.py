@@ -8,10 +8,15 @@ from ...models import AssignmentGroup, ResolvedBy, SortedTicket
 from ..serializers import SortedTicketSerializer
 
 
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size_query_param = "page_size"
+    max_page_size = 1000
+
+
 class SortedTicketListView(generics.ListAPIView):
     serializer_class = SortedTicketSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = PageNumberPagination
+    pagination_class = CustomPageNumberPagination
 
     def get_queryset(self):
         queryset = SortedTicket.objects.select_related("incident")

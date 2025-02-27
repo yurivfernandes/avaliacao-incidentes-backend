@@ -68,10 +68,10 @@ class SorteioIncidentsTask:
                         tickets_disponiveis, quantidade_real
                     )
 
-                    # Adiciona ao dataset
+                    # Adiciona ao dataset usando o formato string para mes_ano
                     self.dataset.extend(
                         [
-                            {"incident": ticket, "mes_ano": ticket.closed_at}
+                            {"incident": ticket, "mes_ano": self.mes_ano_fmt}
                             for ticket in tickets_sorteados
                         ]
                     )
@@ -106,9 +106,9 @@ class SorteioIncidentsTask:
         self._save()
 
     def _delete(self) -> None:
-        """Remove os registros existentes do período"""
+        """Remove os registros existentes do período específico"""
         n_deleted, _ = SortedTicket.objects.filter(
-            mes_ano=self.mes_ano_fmt
+            mes_ano__exact=self.mes_ano_fmt  # Garante correspondência exata do mês/ano
         ).delete()
         self.log["n_deleted"] = n_deleted
 
