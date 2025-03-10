@@ -5,47 +5,49 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ...models import Avaliacao
-from ..serializers import AvaliacaoCreateSerializer, AvaliacaoSerializer
+from ..serializers import AvaliacaoSerializer
 
 
 class CustomPageNumberPagination(PageNumberPagination):
+    page_size = 10
     page_size_query_param = "page_size"
     max_page_size = 1000
 
 
-class AvaliacaoListCreateView(generics.ListCreateAPIView):
+class AvaliacaoListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = CustomPageNumberPagination
-
-    def get_serializer_class(self):
-        if self.request.method == "POST":
-            return AvaliacaoCreateSerializer
-        return AvaliacaoSerializer
+    serializer_class = AvaliacaoSerializer
 
     def get_queryset(self):
-        queryset = Avaliacao.objects.select_related("user", "incident")
+        queryset = (
+            Avaliacao.objects.select_related(
+                "user",
+                "incident",
+            )
+            .prefetch_related(
+                "notacriteriobooleano_set__criterio",
+                "notacriterioconversao_set__criterio",
+                "notacriterioconversao_set__conversao",
+            )
+            .order_by("-created_at")
+            .distinct()  # Adiciona distinct para evitar duplicatas
+        )
 
         user = self.request.user
 
-        # Filtrar baseado no tipo de usuário
         if user.is_staff:
-            # Staff vê tudo
             pass
         elif user.is_gestor:
-            # Gestor vê apenas tickets das suas filas
             if user.assignment_groups.exists():
                 queryset = queryset.filter(
                     incident__assignment_group__in=user.assignment_groups.all()
                 )
             else:
-                return (
-                    Avaliacao.objects.none()
-                )  # Retorna queryset vazio se não tiver grupos
+                return Avaliacao.objects.none()
         else:
-            # Técnico vê apenas seus tickets usando ID
             queryset = queryset.filter(incident__resolved_by=user.id)
 
-        # Aplicar filtros de busca - atualizado para usar ID também
         search = self.request.query_params.get("search", "")
         if search:
             queryset = queryset.filter(
@@ -54,9 +56,6 @@ class AvaliacaoListCreateView(generics.ListCreateAPIView):
             )
 
         return queryset
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
 
     def get_paginated_response(self, data):
         assert self.paginator is not None

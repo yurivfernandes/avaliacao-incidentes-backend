@@ -21,19 +21,14 @@ from . import views
 
 urlpatterns = [
     path(
-        "avaliacoes/",
-        views.AvaliacaoListCreateView.as_view(),
-        name="avaliacao-list-create",
+        "list/",
+        views.AvaliacaoListView.as_view(),
+        name="avaliacao-list",
     ),
     path(
         "avaliacoes/<int:pk>/",
         views.AvaliacaoDetailView.as_view(),
         name="avaliacao-detail",
-    ),
-    path(
-        "avaliacoes/notas-por-tecnico/",
-        views.NotaPorTecnicoView.as_view(),
-        name="notas-por-tecnico",
     ),
     path(
         "calcular-notas/",

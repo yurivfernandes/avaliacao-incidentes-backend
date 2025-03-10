@@ -1,5 +1,5 @@
 from .avaliacao_detail import AvaliacaoDetailView
-from .avaliacao_list_create import AvaliacaoListCreateView
+from .avaliacao_list_create import AvaliacaoListView
 from .calcular_notas_view import CalcularNotasView
 from .criar_avaliacao_completa import CriarAvaliacaoCompletaView
 from .nota_criterio_views import (
@@ -14,7 +14,7 @@ from .processadores_criterios import (
 )
 
 __all__ = [
-    "AvaliacaoListCreateView",
+    "AvaliacaoListView",
     "AvaliacaoDetailView",
     "NotaPorTecnicoView",
     "CalcularNotasView",
