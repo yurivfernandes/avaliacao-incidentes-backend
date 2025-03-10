@@ -13,6 +13,21 @@ User = get_user_model()
 
 
 class AvaliacaoSerializer(serializers.ModelSerializer):
+    MESES_PT = {
+        "Jan": "Jan",
+        "Feb": "Fev",
+        "Mar": "Mar",
+        "Apr": "Abr",
+        "May": "Mai",
+        "Jun": "Jun",
+        "Jul": "Jul",
+        "Aug": "Ago",
+        "Sep": "Set",
+        "Oct": "Out",
+        "Nov": "Nov",
+        "Dec": "Dez",
+    }
+
     number = serializers.CharField(source="incident.number")
     resolved_by = serializers.SerializerMethodField()
     assignment_group = serializers.SerializerMethodField()
@@ -88,10 +103,10 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
 
     def get_data_referencia(self, obj):
         try:
-            if (
-                obj.incident.closed_at
-            ):  # Alterado de resolved_at para closed_at
-                return obj.incident.closed_at.strftime("%m-%Y")
+            if obj.incident.closed_at:
+                mes_en = obj.incident.closed_at.strftime("%b")
+                mes_pt = self.MESES_PT.get(mes_en, mes_en)
+                return f"{mes_pt}/{obj.incident.closed_at.strftime('%Y')}"
             return ""
         except AttributeError:
             return ""
