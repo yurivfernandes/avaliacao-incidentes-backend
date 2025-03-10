@@ -35,4 +35,19 @@ urlpatterns = [
         views.NotaPorTecnicoView.as_view(),
         name="notas-por-tecnico",
     ),
+    path(
+        "calcular-notas/",
+        views.CalcularNotasView.as_view(),
+        name="calcular-notas",
+    ),
+    path(
+        "notas/",
+        views.NotasAvaliacaoView.as_view(),
+        name="notas-avaliacao",
+    ),
+    path(
+        "save/",
+        views.CriarAvaliacaoCompletaView.as_view(),
+        name="criar-avaliacao-save",
+    ),
 ]

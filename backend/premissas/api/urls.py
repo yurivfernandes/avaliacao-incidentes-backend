@@ -30,4 +30,6 @@ urlpatterns = [
         views.PremissasView.as_view(),
         name="premissas-detail",
     ),
+    path("criterios/", views.CriteriosView.as_view(), name="criterios-list"),
+    path("conversoes/", views.ConversaoView.as_view(), name="conversoes"),
 ]

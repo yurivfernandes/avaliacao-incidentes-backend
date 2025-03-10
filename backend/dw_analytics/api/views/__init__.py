@@ -1,4 +1,5 @@
 from .assignment_group_views import AssignmentGroupListView
+from .incident_fields_views import IncidentFieldsView
 from .load_assignment_group_views import LoadAssignmentGroupView
 from .load_resolved_by_views import LoadResolvedByView
 from .load_sorteio_incident_views import SorteioIncidentsView

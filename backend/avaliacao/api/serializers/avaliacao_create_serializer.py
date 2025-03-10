@@ -9,18 +9,7 @@ class AvaliacaoCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Avaliacao
-        fields = [
-            "incident_id",
-            "is_contrato_lancado",
-            "is_horas_lancadas",
-            "is_has_met_first_response_target",
-            "is_resolution_target",
-            "is_atualizaca_logs_correto",
-            "is_ticket_encerrado_corretamente",
-            "is_descricao_troubleshooting",
-            "is_cliente_notificado",
-            "is_category_correto",
-        ]
+        fields = ["incident_id"]
 
     def validate_incident_id(self, value):
         try:
@@ -30,6 +19,11 @@ class AvaliacaoCreateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        incident_id = validated_data.pop('incident_id')
+        incident_id = validated_data.pop("incident_id")
         incident = Incident.objects.get(id=incident_id)
-        return Avaliacao.objects.create(incident=incident, **validated_data)
+
+        avaliacao = Avaliacao.objects.create(
+            incident=incident, **validated_data
+        )
+
+        return avaliacao

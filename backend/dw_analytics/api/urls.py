@@ -55,4 +55,9 @@ urlpatterns = [
         views.SortedTicketListView.as_view(),
         name="sorted-ticket-list",
     ),
+    path(
+        "incident-fields/",
+        views.IncidentFieldsView.as_view(),
+        name="incident-fields",
+    ),
 ]

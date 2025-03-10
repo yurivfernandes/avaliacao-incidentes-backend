@@ -22,6 +22,9 @@ class SortedTicketSerializer(serializers.ModelSerializer):
     sub_categoria_falha = serializers.CharField(
         source="incident.dv_u_sub_categoria_da_falha"
     )
+    dv_u_detalhe_sub_categoria_da_falha = serializers.CharField(
+        source="incident.dv_u_detalhe_sub_categoria_da_falha"
+    )
     origem = serializers.CharField(source="incident.u_origem")
     sla_atendimento = serializers.BooleanField(
         source="incident.sla_atendimento"
@@ -87,6 +90,7 @@ class SortedTicketSerializer(serializers.ModelSerializer):
             "company",
             "categoria_falha",
             "sub_categoria_falha",
+            "dv_u_detalhe_sub_categoria_da_falha",
             "origem",
             "sla_atendimento",
             "sla_resolucao",

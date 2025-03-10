@@ -13,10 +13,7 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
     resolved_by = serializers.SerializerMethodField()
     assignment_group = serializers.SerializerMethodField()
     contract = serializers.SerializerMethodField()
-    created_by = (
-        serializers.SerializerMethodField()
-    )  # Alterado para SerializerMethodField
-    nota_total = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Avaliacao
@@ -38,12 +35,11 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
             "is_descricao_troubleshooting",
             "is_cliente_notificado",
             "is_category_correto",
-            "nota_total",
             "created_at",
             "updated_at",
         ]
 
-    def get_created_by(self, obj):  # Novo método
+    def get_created_by(self, obj):
         if obj.user:
             return f"{obj.user.first_name} {obj.user.last_name}".strip()
         return ""
@@ -84,17 +80,3 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
             return contract.dv_contract if contract else ""
         except (Contract.DoesNotExist, ValueError):
             return ""
-
-    def get_nota_total(self, obj):
-        campos = [
-            "is_contrato_lancado",
-            "is_horas_lancadas",
-            "is_has_met_first_response_target",
-            "is_resolution_target",
-            "is_atualizaca_logs_correto",
-            "is_ticket_encerrado_corretamente",
-            "is_descricao_troubleshooting",
-            "is_cliente_notificado",
-            "is_category_correto",
-        ]
-        return sum(1 for campo in campos if getattr(obj, campo, False))
