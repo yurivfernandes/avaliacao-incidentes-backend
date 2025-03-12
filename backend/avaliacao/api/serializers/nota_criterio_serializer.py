@@ -4,17 +4,32 @@ from ...models import NotaCriterioBooleano, NotaCriterioConversao
 
 
 class NotaCriterioBooleanoSerializer(serializers.ModelSerializer):
-    criterio_nome = serializers.CharField(source="criterio.nome")
+    criterio_nome = serializers.CharField(
+        source="criterio.nome", read_only=True
+    )
+    valor = serializers.BooleanField()
 
     class Meta:
         model = NotaCriterioBooleano
-        fields = ["criterio_nome", "valor", "created_at"]
+        fields = ["id", "criterio_nome", "valor", "criterio"]
+        read_only_fields = ["criterio_nome"]
 
 
 class NotaCriterioConversaoSerializer(serializers.ModelSerializer):
-    criterio_nome = serializers.CharField(source="criterio.nome")
-    valor_convertido = serializers.FloatField(source="conversao.percentual")
+    criterio_nome = serializers.CharField(
+        source="criterio.nome", read_only=True
+    )
+    nome_conversao = serializers.CharField(
+        source="conversao.nome", read_only=True
+    )
 
     class Meta:
         model = NotaCriterioConversao
-        fields = ["criterio_nome", "valor_convertido", "created_at"]
+        fields = [
+            "id",
+            "criterio_nome",
+            "nome_conversao",
+            "criterio",
+            "conversao",
+        ]
+        read_only_fields = ["criterio_nome", "nome_conversao"]

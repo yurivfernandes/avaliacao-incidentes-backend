@@ -26,10 +26,8 @@ class SortedTicketSerializer(serializers.ModelSerializer):
         source="incident.dv_u_detalhe_sub_categoria_da_falha"
     )
     origem = serializers.CharField(source="incident.u_origem")
-    sla_atendimento = serializers.BooleanField(
-        source="incident.sla_atendimento"
-    )
-    sla_resolucao = serializers.BooleanField(source="incident.sla_resolucao")
+    sla_atendimento = serializers.SerializerMethodField()
+    sla_resolucao = serializers.SerializerMethodField()
 
     def get_resolved_by(self, obj):
         try:
@@ -76,6 +74,12 @@ class SortedTicketSerializer(serializers.ModelSerializer):
             return contract.dv_contract if contract else ""
         except (Contract.DoesNotExist, ValueError):
             return ""
+
+    def get_sla_atendimento(self, obj):
+        return not obj.incident.sla_atendimento
+
+    def get_sla_resolucao(self, obj):
+        return not obj.incident.sla_resolucao
 
     class Meta:
         model = SortedTicket

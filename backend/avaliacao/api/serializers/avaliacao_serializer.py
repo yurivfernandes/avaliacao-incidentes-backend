@@ -112,7 +112,6 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
             return ""
 
     def to_representation(self, instance):
-        # Garante que cada avaliação seja serializada apenas uma vez
         representation = super().to_representation(instance)
 
         # Removemos possíveis duplicatas nas notas
@@ -130,7 +129,7 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
             seen = set()
             unique_notas = []
             for nota in representation["notas_conversao"]:
-                nota_key = (nota["criterio_nome"], nota["valor_convertido"])
+                nota_key = (nota["criterio_nome"], nota["nome_conversao"])
                 if nota_key not in seen:
                     seen.add(nota_key)
                     unique_notas.append(nota)

@@ -26,7 +26,7 @@ urlpatterns = [
         name="avaliacao-list",
     ),
     path(
-        "avaliacoes/<int:pk>/",
+        "detail/<int:pk>/",
         views.AvaliacaoDetailView.as_view(),
         name="avaliacao-detail",
     ),
