@@ -1,37 +1,66 @@
 from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
-from django.db.models import Case, Count, IntegerField, Sum, When
+from django.core.exceptions import PermissionDenied
+from django.db.models import Avg, Count, F, Sum
 from django.db.models.functions import TruncMonth
 from dw_analytics.models import AssignmentGroup
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ...models import Avaliacao
-from ..serializers import DashboardSerializer
+from ...models import ResultadoAvaliacao
+from ..serializers import NotaPorTecnicoSerializer
 
 
 class NotaPorTecnicoView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = DashboardSerializer
+    serializer_class = NotaPorTecnicoSerializer
 
     def get(self, request, *args, **kwargs):
         data = self.get_dashboard_data()
-        serializer = self.get_serializer(data)
-        return Response(serializer.data)
+        return Response(data)
 
     def get_dashboard_data(self):
-        User = get_user_model()
         user = self.request.user
 
-        # Base query com joins necessários
-        queryset = (
-            Avaliacao.objects.select_related("incident")
-            .filter(incident__resolved_by__isnull=False)
-            .filter(
-                incident__closed_at__isnull=False
-            )  # Garantir que tem data de fechamento
+        # Validação dos parâmetros obrigatórios
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+        assignment_group = self.request.query_params.get("assignment_group")
+
+        if not all([start_date, end_date, assignment_group]):
+            missing_params = []
+            if not start_date:
+                missing_params.append("start_date")
+            if not end_date:
+                missing_params.append("end_date")
+            if not assignment_group:
+                missing_params.append("assignment_group")
+
+            raise ValidationError(
+                {
+                    "error": "Parâmetros obrigatórios ausentes",
+                    "missing_params": missing_params,
+                }
+            )
+
+        # Converter e validar datas
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError:
+            raise ValidationError(
+                {"error": "Formato de data inválido. Use YYYY-MM-DD"}
+            )
+
+        # Base query
+        queryset = ResultadoAvaliacao.objects.select_related(
+            "avaliacao__incident", "criterio"
+        ).filter(
+            data_referencia__range=[start_date, end_date],
+            avaliacao__incident__assignment_group=assignment_group,
         )
 
         # Filtros de permissão
@@ -40,401 +69,186 @@ class NotaPorTecnicoView(generics.ListAPIView):
                 user_groups = user.assignment_groups.values_list(
                     "id", flat=True
                 )
-                queryset = queryset.filter(
-                    incident__assignment_group__in=user_groups
-                )
+                if int(assignment_group) not in user_groups:
+                    raise PermissionDenied(
+                        "Você não tem permissão para acessar este grupo"
+                    )
             else:
-                queryset = queryset.filter(incident__resolved_by=str(user.id))
+                queryset = queryset.filter(
+                    avaliacao__incident__resolved_by=str(user.id)
+                )
 
-        # Obtém datas dos parâmetros ou usa últimos 6 meses
-        start_date = self.request.query_params.get("start_date")
-        end_date = self.request.query_params.get("end_date")
-
-        if not start_date or not end_date:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=180)
-        else:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d")
-            end_date = datetime.strptime(end_date, "%Y-%m-%d")
-
-        queryset = queryset.filter(
-            incident__closed_at__date__range=[start_date, end_date]
+        # Agrupar resultados
+        resultados = (
+            queryset.annotate(
+                mes=TruncMonth("data_referencia"),
+                tecnico_id=F("avaliacao__incident__resolved_by"),
+                grupo_id=F("avaliacao__incident__assignment_group"),
+            )
+            .values(
+                "mes",
+                "tecnico_id",
+                "grupo_id",
+                "criterio__id",
+                "criterio__nome",
+            )
+            .annotate(
+                nota_media=Avg("nota"),
+                nota_total=Sum("nota"),
+                total_avaliacoes=Count("avaliacao", distinct=True),
+            )
+            .order_by("mes", "grupo_id", "tecnico_id", "criterio__id")
         )
 
-        # Busca os grupos primeiro
+        # Buscar dados dos grupos
         grupos = AssignmentGroup.objects.all()
         grupo_map = {str(g.id): g.dv_assignment_group for g in grupos}
 
-        # Calcula as notas
-        notas = (
-            queryset.annotate(mes=TruncMonth("incident__closed_at"))
-            .values(
-                "incident__resolved_by",
-                "mes",
-                "incident__assignment_group",
-            )
-            .annotate(
-                total_contrato_lancado=Sum(
-                    Case(
-                        When(is_contrato_lancado=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_horas_lancadas=Sum(
-                    Case(
-                        When(is_horas_lancadas=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_first_response=Sum(
-                    Case(
-                        When(is_has_met_first_response_target=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_resolution=Sum(
-                    Case(
-                        When(is_resolution_target=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_logs_correto=Sum(
-                    Case(
-                        When(is_atualizaca_logs_correto=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_encerrado_corretamente=Sum(
-                    Case(
-                        When(is_ticket_encerrado_corretamente=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_troubleshooting=Sum(
-                    Case(
-                        When(is_descricao_troubleshooting=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_cliente_notificado=Sum(
-                    Case(
-                        When(is_cliente_notificado=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_category=Sum(
-                    Case(
-                        When(is_category_correto=True, then=1),
-                        default=0,
-                        output_field=IntegerField(),
-                    )
-                ),
-                total_avaliacoes=Count("id"),
-            )
-            .order_by(
-                "mes", "incident__assignment_group", "incident__resolved_by"
-            )
+        # Buscar dados dos usuários
+        User = get_user_model()
+        tecnicos = User.objects.filter(
+            id__in=set(r["tecnico_id"] for r in resultados if r["tecnico_id"])
         )
+        tecnico_map = {
+            str(t.id): f"{t.first_name} {t.last_name}".strip() or t.username
+            for t in tecnicos
+        }
 
-        # Agrupa os resultados
-        resultado_agrupado = {}
-        for nota in notas:
-            if not nota["incident__resolved_by"]:
-                continue
+        # Organizar resultado por grupo e mês
+        resultado_final = []
 
-            mes_ano = nota["mes"].strftime("%m/%Y")
-            group_id = nota["incident__assignment_group"]
+        # Inicializar estruturas de estatísticas
+        for resultado in resultados:
+            mes_ano = resultado["mes"].strftime("%m/%Y")
+            grupo_id = resultado["grupo_id"]
 
-            # Cria chave composta para agrupar por mês e grupo
-            chave = f"{mes_ano}_{group_id}"
+            grupo_mes_key = f"{mes_ano}_{grupo_id}"
+            if mes_ano not in grupo_mes_key:
+                grupo_mes_key[mes_ano] = []
 
-            if chave not in resultado_agrupado:
-                resultado_agrupado[chave] = {
-                    "assignment_group_id": group_id,
+            if grupo_mes_key not in grupo_mes_key:
+                grupo_mes_key[grupo_mes_key] = {
+                    "nota_total": 0,
+                    "total_avaliacoes": 0,
+                    "nota_media": 0,
+                }
+
+        for resultado in resultados:
+            mes_ano = resultado["mes"].strftime("%m/%Y")
+            grupo_id = resultado["grupo_id"]
+
+            # Encontrar ou criar grupo no resultado
+            grupo_dict = next(
+                (
+                    g
+                    for g in resultado_final
+                    if g["mes"] == mes_ano
+                    and g["assignment_group_id"] == grupo_id
+                ),
+                None,
+            )
+
+            if not grupo_dict:
+                grupo_dict = {
+                    "assignment_group_id": grupo_id,
                     "assignment_group_nome": grupo_map.get(
-                        group_id, "Desconhecido"
+                        grupo_id, "Desconhecido"
                     ),
                     "mes": mes_ano,
+                    "nota_total": 0,
+                    "total_avaliacoes": 0,
+                    "nota_media": 0,
+                    "total_tickets": 0,  # Novo campo
                     "tecnicos": [],
                 }
+                resultado_final.append(grupo_dict)
 
-            tecnico = User.objects.filter(
-                id=nota["incident__resolved_by"]
-            ).first()
-            if tecnico:
-                total_pontos = (
-                    nota["total_contrato_lancado"]
-                    + nota["total_horas_lancadas"]
-                    + nota["total_first_response"]
-                    + nota["total_resolution"]
-                    + nota["total_logs_correto"]
-                    + nota["total_encerrado_corretamente"]
-                    + nota["total_troubleshooting"]
-                    + nota["total_cliente_notificado"]
-                    + nota["total_category"]
-                )
-                total_possivel = nota["total_avaliacoes"] * 9
-
-                percentual = (
-                    round((total_pontos / total_possivel) * 100, 2)
-                    if total_possivel > 0
-                    else 0
-                )
-
-                # Calculate percentages for each item
-                item_stats = {
-                    "contrato_lancado": {
-                        "nome": "Contrato Lançado",
-                        "total": nota["total_contrato_lancado"],
-                        "percentual": (
-                            nota["total_contrato_lancado"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "horas_lancadas": {
-                        "nome": "Horas Lançadas",
-                        "total": nota["total_horas_lancadas"],
-                        "percentual": (
-                            nota["total_horas_lancadas"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "first_response": {
-                        "nome": "Primeiro Atendimento",
-                        "total": nota["total_first_response"],
-                        "percentual": (
-                            nota["total_first_response"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "resolution": {
-                        "nome": "Meta de Resolução",
-                        "total": nota["total_resolution"],
-                        "percentual": (
-                            nota["total_resolution"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "logs_correto": {
-                        "nome": "Logs Corretos",
-                        "total": nota["total_logs_correto"],
-                        "percentual": (
-                            nota["total_logs_correto"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "encerrado_corretamente": {
-                        "nome": "Ticket Encerrado Corretamente",
-                        "total": nota["total_encerrado_corretamente"],
-                        "percentual": (
-                            nota["total_encerrado_corretamente"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "troubleshooting": {
-                        "nome": "Descrição Troubleshooting",
-                        "total": nota["total_troubleshooting"],
-                        "percentual": (
-                            nota["total_troubleshooting"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "cliente_notificado": {
-                        "nome": "Cliente Notificado",
-                        "total": nota["total_cliente_notificado"],
-                        "percentual": (
-                            nota["total_cliente_notificado"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                    "category": {
-                        "nome": "Categorização Correta",
-                        "total": nota["total_category"],
-                        "percentual": (
-                            nota["total_category"]
-                            / nota["total_avaliacoes"]
-                            * 100
-                        )
-                        if nota["total_avaliacoes"] > 0
-                        else 0,
-                    },
-                }
-
-                # Verifica o percentual do mês anterior
-                mes_anterior = (nota["mes"] - timedelta(days=30)).strftime(
-                    "%m/%Y"
-                )
-                chave_anterior = f"{mes_anterior}_{group_id}"
-                tendencia = self.calculate_tendency(
-                    percentual, chave_anterior, resultado_agrupado, tecnico.id
-                )
-
-                resultado_agrupado[chave]["tecnicos"].append(
-                    {
-                        "tecnico_id": tecnico.id,
-                        "tecnico_nome": f"{tecnico.first_name} {tecnico.last_name}".strip()
-                        or tecnico.username,
-                        "total_pontos": total_pontos,
-                        "total_avaliacoes": nota["total_avaliacoes"],
-                        "total_possivel": total_possivel,
-                        "percentual": percentual,
-                        "tendencia": tendencia,
-                        "item_stats": item_stats,
-                    }
-                )
-
-        # Calcula a média do percentual no período filtrado
-        media_percentual = (
-            sum(
-                tecnico["percentual"]
-                for grupo in resultado_agrupado.values()
-                for tecnico in grupo["tecnicos"]
-            )
-            / sum(
-                len(grupo["tecnicos"]) for grupo in resultado_agrupado.values()
-            )
-            if resultado_agrupado
-            else 0
-        )
-
-        # Calcula o ranking dos técnicos (removendo duplicatas)
-        tecnicos_dict = {}
-        for grupo in resultado_agrupado.values():
-            for tecnico in grupo["tecnicos"]:
-                tecnico_id = tecnico["tecnico_id"]
-                if (
-                    tecnico_id not in tecnicos_dict
-                    or tecnicos_dict[tecnico_id]["percentual"]
-                    < tecnico["percentual"]
-                ):
-                    tecnicos_dict[tecnico_id] = tecnico
-
-        ranking_tecnicos = sorted(
-            tecnicos_dict.values(), key=lambda x: x["percentual"], reverse=True
-        )
-
-        # Calcula os itens avaliados com piores notas (consolidado)
-        itens_piores_notas = {}
-        total_tecnicos = {}
-
-        for grupo in resultado_agrupado.values():
-            for tecnico in grupo["tecnicos"]:
-                for item_key, item_data in tecnico["item_stats"].items():
-                    if item_key not in total_tecnicos:
-                        total_tecnicos[item_key] = set()
-                    if (
-                        item_data["percentual"] < 70
-                    ):  # Threshold para considerar como problema
-                        if item_key not in itens_piores_notas:
-                            itens_piores_notas[item_key] = set()
-                        itens_piores_notas[item_key].add(tecnico["tecnico_id"])
-                    total_tecnicos[item_key].add(tecnico["tecnico_id"])
-
-        # Calcula o percentual de falha para cada item
-        itens_piores_consolidado = {
-            item_key: {
-                "nome": next(
-                    (
-                        t["item_stats"][item_key]["nome"]
-                        for g in resultado_agrupado.values()
-                        for t in g["tecnicos"]
-                        if item_key in t["item_stats"]
-                    ),
-                    item_key,
+            # Encontrar ou criar técnico no grupo
+            tecnico = next(
+                (
+                    t
+                    for t in grupo_dict["tecnicos"]
+                    if t["tecnico_id"] == resultado["tecnico_id"]
                 ),
-                "percentual": len(falhas) / len(total_tecnicos[item_key]) * 100
-                if total_tecnicos[item_key]
-                else 0,
-                "tecnicos": [
-                    tecnicos_dict[tecnico_id]
-                    for tecnico_id in falhas
-                    if tecnico_id in tecnicos_dict
-                ],
-            }
-            for item_key, falhas in itens_piores_notas.items()
-        }
+                None,
+            )
 
-        # Ordena e pega apenas o item mais crítico
-        item_mais_critico = (
-            sorted(
-                itens_piores_consolidado.items(),
-                key=lambda x: x[1]["percentual"],
-                reverse=True,
-            )[0]
-            if itens_piores_consolidado
-            else None
-        )
-
-        return {
-            "resultado_agrupado": [
-                {
-                    **grupo,
-                    "tecnicos": [
-                        tecnico
-                        for tecnico in grupo["tecnicos"]
-                        if tecnico["tecnico_id"] in tecnicos_dict
-                    ],
+            if not tecnico:
+                tecnico = {
+                    "tecnico_id": resultado["tecnico_id"],
+                    "tecnico_nome": tecnico_map.get(
+                        resultado["tecnico_id"], "Desconhecido"
+                    ),
+                    "nota_media": 0,
+                    "nota_total": 0,
+                    "total_avaliacoes": resultado["total_avaliacoes"],
+                    "posicao_ranking": 0,
+                    "melhor_criterio": None,
+                    "pior_criterio": None,
+                    "criterios": [],
                 }
-                for grupo in resultado_agrupado.values()
-            ],
-            "media_percentual": media_percentual,
-            "ranking_tecnicos": ranking_tecnicos,
-            "item_mais_critico": item_mais_critico,
-        }
+                grupo_dict["tecnicos"].append(tecnico)
 
-    def calculate_tendency(
-        self,
-        current_percentual,
-        chave_anterior,
-        resultado_agrupado,
-        tecnico_id,
-    ):
-        percentual_anterior = next(
-            (
-                t["percentual"]
-                for t in resultado_agrupado.get(chave_anterior, {}).get(
-                    "tecnicos", []
+            # Adicionar critério
+            criterio = {
+                "criterio_id": resultado["criterio__id"],
+                "criterio_nome": resultado["criterio__nome"],
+                "nota_media": float(resultado["nota_media"]),
+                "nota_total": float(resultado["nota_total"]),
+                "total_avaliacoes": resultado["total_avaliacoes"],
+            }
+            tecnico["criterios"].append(criterio)
+
+            # Calcular médias e totais do técnico
+            tecnico["nota_total"] = sum(
+                c["nota_total"] for c in tecnico["criterios"]
+            )
+            tecnico["nota_media"] = (
+                tecnico["nota_total"] / tecnico["total_avaliacoes"]
+                if tecnico["total_avaliacoes"] > 0
+                else 0
+            )
+
+            # Identificar melhor e pior critério
+            if tecnico["criterios"]:
+                melhor_criterio = max(
+                    tecnico["criterios"], key=lambda x: x["nota_media"]
                 )
-                if t["tecnico_id"] == tecnico_id
-            ),
-            None,
-        )
+                pior_criterio = min(
+                    tecnico["criterios"], key=lambda x: x["nota_media"]
+                )
+                tecnico["melhor_criterio"] = {
+                    "criterio_id": melhor_criterio["criterio_id"],
+                    "criterio_nome": melhor_criterio["criterio_nome"],
+                    "nota_media": melhor_criterio["nota_media"],
+                }
+                tecnico["pior_criterio"] = {
+                    "criterio_id": pior_criterio["criterio_id"],
+                    "criterio_nome": pior_criterio["criterio_nome"],
+                    "nota_media": pior_criterio["nota_media"],
+                }
 
-        if percentual_anterior is not None:
-            if current_percentual > percentual_anterior:
-                return "up"
-            elif current_percentual < percentual_anterior:
-                return "down"
-        return "same"
+            # Atualizar totais do grupo após processar cada técnico
+            grupo_dict["nota_total"] = sum(
+                t["nota_total"] for t in grupo_dict["tecnicos"]
+            )
+            grupo_dict["total_avaliacoes"] = sum(
+                t["total_avaliacoes"] for t in grupo_dict["tecnicos"]
+            )
+            grupo_dict["total_tickets"] = sum(  # Novo cálculo
+                t["total_avaliacoes"] for t in grupo_dict["tecnicos"]
+            )
+
+            # Calcular a média do grupo como a média das médias dos técnicos
+            tecnicos_com_avaliacoes = [
+                t for t in grupo_dict["tecnicos"] if t["total_avaliacoes"] > 0
+            ]
+            if tecnicos_com_avaliacoes:
+                grupo_dict["nota_media"] = sum(
+                    t["nota_media"] for t in tecnicos_com_avaliacoes
+                ) / len(tecnicos_com_avaliacoes)
+            else:
+                grupo_dict["nota_media"] = 0
+
+        # Remover todo o código de estatísticas_por_mes e estatisticas_por_grupo_mes
+        return resultado_final

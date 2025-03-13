@@ -36,9 +36,9 @@ urlpatterns = [
         name="calcular-notas",
     ),
     path(
-        "notas/",
-        views.NotasAvaliacaoView.as_view(),
-        name="notas-avaliacao",
+        "notas-por-tecnico/",
+        views.NotaPorTecnicoView.as_view(),
+        name="notas-por-tecnico",
     ),
     path(
         "save/",

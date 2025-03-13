@@ -31,7 +31,7 @@ class AvaliacaoListView(generics.ListAPIView):
                 "notacriterioconversao_set__conversao",
             )
             .order_by("-created_at")
-            .distinct()  # Adiciona distinct para evitar duplicatas
+            .distinct()
         )
 
         user = self.request.user

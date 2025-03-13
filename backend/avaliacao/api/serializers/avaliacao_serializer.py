@@ -114,7 +114,7 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
 
-        # Removemos possíveis duplicatas nas notas
+        # Ordenar notas booleanas por nome do critério
         if "notas_booleanas" in representation:
             seen = set()
             unique_notas = []
@@ -123,8 +123,11 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
                 if nota_key not in seen:
                     seen.add(nota_key)
                     unique_notas.append(nota)
-            representation["notas_booleanas"] = unique_notas
+            representation["notas_booleanas"] = sorted(
+                unique_notas, key=lambda x: x["criterio_nome"]
+            )
 
+        # Ordenar notas de conversão por nome do critério
         if "notas_conversao" in representation:
             seen = set()
             unique_notas = []
@@ -133,6 +136,8 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
                 if nota_key not in seen:
                     seen.add(nota_key)
                     unique_notas.append(nota)
-            representation["notas_conversao"] = unique_notas
+            representation["notas_conversao"] = sorted(
+                unique_notas, key=lambda x: x["criterio_nome"]
+            )
 
         return representation

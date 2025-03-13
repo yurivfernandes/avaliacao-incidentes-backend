@@ -1,3 +1,5 @@
+import re
+
 import polars as pl
 from app.utils.pipiline import Pipeline
 from celery import shared_task
@@ -30,7 +32,16 @@ class LoadCalcularNotas(Pipeline):
     def __init__(self, **kwargs) -> None:
         super().__init__()
         self.avaliacao_id = kwargs.get("avaliacao_id")
+        self.assignment_group = kwargs.get(
+            "assignment_group"
+        )  # Novo parâmetro
         data_referencia = kwargs.get("data_referencia")
+
+        if not re.match(r"^\d{4}-(?:0[1-9]|1[0-2])$", data_referencia):
+            raise ValueError(
+                "data_referencia deve estar no formato YYYY-MM (exemplo: 2024-01)"
+            )
+
         # Formatar a data de referência para o primeiro dia do mês às 00:00
         self.data_referencia = datetime.strptime(
             f"{data_referencia}-01 00:00:00", "%Y-%m-%d %H:%M:%S"
@@ -38,9 +49,24 @@ class LoadCalcularNotas(Pipeline):
 
     def get_avaliacao_queryset(self) -> QuerySet:
         """Retorna o queryset de [Avaliacao]"""
-        queryset = Avaliacao.objects.all()
+        # Obter início e fim do mês de referência
+        data_ref = self.data_referencia.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        queryset = Avaliacao.objects.filter(
+            incident__closed_at__year=data_ref.year,
+            incident__closed_at__month=data_ref.month,
+        )
+
         if self.avaliacao_id:
             queryset = queryset.filter(id=self.avaliacao_id)
+
+        if self.assignment_group:
+            queryset = queryset.filter(
+                incident__assignment_group=self.assignment_group
+            )
+
         return queryset
 
     def get_criterios_queryset(self) -> QuerySet:
@@ -49,7 +75,13 @@ class LoadCalcularNotas(Pipeline):
 
     def get_notas_queryset(self) -> QuerySet:
         """Retorna o queryset com as notas calculadas dos dois tipos de critérios"""
-        base_filter = {}
+        # Obter os IDs das avaliações do período
+        avaliacoes_ids = self.get_avaliacao_queryset().values_list(
+            "id", flat=True
+        )
+
+        # Criar filtro base
+        base_filter = {"avaliacao_id__in": avaliacoes_ids}
         if self.avaliacao_id:
             base_filter["avaliacao_id"] = self.avaliacao_id
 
@@ -84,14 +116,19 @@ class LoadCalcularNotas(Pipeline):
         return self.log
 
     def extract_transform_dataset(self) -> None:
+        # Garantir que a data seja sempre o primeiro dia do mês às 00:00
+        data_ref = self.data_referencia.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
         self.dataset = self._notas_dataset.select(
             [
                 pl.col("avaliacao_id"),
                 pl.col("criterio_id"),
                 pl.col("nota_calculada").alias("nota"),
-                pl.lit(
-                    self.data_referencia.strftime("%Y-%m-%d %H:%M:%S")
-                ).alias("data_referencia"),
+                pl.lit(data_ref.strftime("%Y-%m-%d %H:%M:%S")).alias(
+                    "data_referencia"
+                ),
             ]
         )
 
@@ -117,7 +154,12 @@ class LoadCalcularNotas(Pipeline):
         self._save()
 
     def _delete(self):
-        filters = {"data_referencia": self.data_referencia}
+        # Truncar a data até o mês para o filtro
+        data_ref = self.data_referencia.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        filters = {"data_referencia": data_ref}
         if self.avaliacao_id:
             filters["avaliacao_id"] = self.avaliacao_id
 
