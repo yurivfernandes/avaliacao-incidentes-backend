@@ -12,6 +12,8 @@ from .processadores_criterios import (
     ProcessadorCriterioBooleano,
     ProcessadorCriterioConversao,
 )
+from .ranking_anual_view import RankingAnualView
+from .ranking_mensal_view import RankingMensalView
 
 __all__ = [
     "AvaliacaoListView",
@@ -24,4 +26,6 @@ __all__ = [
     "CriarAvaliacaoCompletaView",
     "ProcessadorCriterioBooleano",
     "ProcessadorCriterioConversao",
+    "RankingMensalView",
+    "RankingAnualView",
 ]

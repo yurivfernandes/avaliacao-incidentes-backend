@@ -10,4 +10,10 @@ class PremissaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Premissas
-        fields = ["id", "assignment", "qtd_incidents", "dv_assignment_group"]
+        fields = [
+            "id",
+            "assignment",
+            "qtd_incidents",
+            "dv_assignment_group",
+            "meta_mensal",
+        ]

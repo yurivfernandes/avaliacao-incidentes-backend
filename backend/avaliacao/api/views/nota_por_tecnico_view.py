@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
-from django.db.models import Avg, Count, F, Sum
+from django.db.models import Count, F, Sum
 from django.db.models.functions import TruncMonth
 from dw_analytics.models import AssignmentGroup
+from premissas.models import Premissas
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -46,7 +47,6 @@ class NotaPorTecnicoView(generics.ListAPIView):
                 }
             )
 
-        # Converter e validar datas
         try:
             start_date = datetime.strptime(start_date, "%Y-%m-%d")
             end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -55,7 +55,6 @@ class NotaPorTecnicoView(generics.ListAPIView):
                 {"error": "Formato de data inválido. Use YYYY-MM-DD"}
             )
 
-        # Base query
         queryset = ResultadoAvaliacao.objects.select_related(
             "avaliacao__incident", "criterio"
         ).filter(
@@ -63,7 +62,6 @@ class NotaPorTecnicoView(generics.ListAPIView):
             avaliacao__incident__assignment_group=assignment_group,
         )
 
-        # Filtros de permissão
         if not user.is_staff:
             if user.is_gestor:
                 user_groups = user.assignment_groups.values_list(
@@ -78,7 +76,6 @@ class NotaPorTecnicoView(generics.ListAPIView):
                     avaliacao__incident__resolved_by=str(user.id)
                 )
 
-        # Agrupar resultados
         resultados = (
             queryset.annotate(
                 mes=TruncMonth("data_referencia"),
@@ -93,18 +90,31 @@ class NotaPorTecnicoView(generics.ListAPIView):
                 "criterio__nome",
             )
             .annotate(
-                nota_media=Avg("nota"),
                 nota_total=Sum("nota"),
                 total_avaliacoes=Count("avaliacao", distinct=True),
             )
             .order_by("mes", "grupo_id", "tecnico_id", "criterio__id")
         )
 
-        # Buscar dados dos grupos
+        # Calcular total de tickets por mês e grupo
+        total_tickets_por_grupo = (
+            queryset.annotate(
+                mes=TruncMonth("data_referencia"),
+                grupo_id=F("avaliacao__incident__assignment_group"),
+            )
+            .values("mes", "grupo_id")
+            .annotate(total_tickets=Count("avaliacao", distinct=True))
+        )
+
+        # Criar um dicionário para fácil acesso ao total de tickets
+        tickets_map = {
+            f"{t['mes'].strftime('%m/%Y')}_{t['grupo_id']}": t["total_tickets"]
+            for t in total_tickets_por_grupo
+        }
+
         grupos = AssignmentGroup.objects.all()
         grupo_map = {str(g.id): g.dv_assignment_group for g in grupos}
 
-        # Buscar dados dos usuários
         User = get_user_model()
         tecnicos = User.objects.filter(
             id__in=set(r["tecnico_id"] for r in resultados if r["tecnico_id"])
@@ -114,30 +124,12 @@ class NotaPorTecnicoView(generics.ListAPIView):
             for t in tecnicos
         }
 
-        # Organizar resultado por grupo e mês
         resultado_final = []
 
-        # Inicializar estruturas de estatísticas
         for resultado in resultados:
             mes_ano = resultado["mes"].strftime("%m/%Y")
             grupo_id = resultado["grupo_id"]
 
-            grupo_mes_key = f"{mes_ano}_{grupo_id}"
-            if mes_ano not in grupo_mes_key:
-                grupo_mes_key[mes_ano] = []
-
-            if grupo_mes_key not in grupo_mes_key:
-                grupo_mes_key[grupo_mes_key] = {
-                    "nota_total": 0,
-                    "total_avaliacoes": 0,
-                    "nota_media": 0,
-                }
-
-        for resultado in resultados:
-            mes_ano = resultado["mes"].strftime("%m/%Y")
-            grupo_id = resultado["grupo_id"]
-
-            # Encontrar ou criar grupo no resultado
             grupo_dict = next(
                 (
                     g
@@ -149,21 +141,27 @@ class NotaPorTecnicoView(generics.ListAPIView):
             )
 
             if not grupo_dict:
+                # Buscar a meta do grupo
+                try:
+                    premissa = Premissas.objects.get(assignment_id=grupo_id)
+                    meta_grupo = premissa.meta_mensal
+                except Premissas.DoesNotExist:
+                    meta_grupo = None
+
                 grupo_dict = {
                     "assignment_group_id": grupo_id,
                     "assignment_group_nome": grupo_map.get(
                         grupo_id, "Desconhecido"
                     ),
                     "mes": mes_ano,
-                    "nota_total": 0,
-                    "total_avaliacoes": 0,
-                    "nota_media": 0,
-                    "total_tickets": 0,  # Novo campo
+                    "meta_mensal": meta_grupo,
+                    "total_tickets": tickets_map.get(
+                        f"{mes_ano}_{grupo_id}", 0
+                    ),
                     "tecnicos": [],
                 }
                 resultado_final.append(grupo_dict)
 
-            # Encontrar ou criar técnico no grupo
             tecnico = next(
                 (
                     t
@@ -182,24 +180,25 @@ class NotaPorTecnicoView(generics.ListAPIView):
                     "nota_media": 0,
                     "nota_total": 0,
                     "total_avaliacoes": resultado["total_avaliacoes"],
-                    "posicao_ranking": 0,
                     "melhor_criterio": None,
                     "pior_criterio": None,
                     "criterios": [],
                 }
                 grupo_dict["tecnicos"].append(tecnico)
 
-            # Adicionar critério
             criterio = {
                 "criterio_id": resultado["criterio__id"],
                 "criterio_nome": resultado["criterio__nome"],
-                "nota_media": float(resultado["nota_media"]),
                 "nota_total": float(resultado["nota_total"]),
                 "total_avaliacoes": resultado["total_avaliacoes"],
             }
+            criterio["nota_media"] = (
+                criterio["nota_total"] / criterio["total_avaliacoes"]
+                if criterio["total_avaliacoes"] > 0
+                else 0
+            )
             tecnico["criterios"].append(criterio)
 
-            # Calcular médias e totais do técnico
             tecnico["nota_total"] = sum(
                 c["nota_total"] for c in tecnico["criterios"]
             )
@@ -209,7 +208,6 @@ class NotaPorTecnicoView(generics.ListAPIView):
                 else 0
             )
 
-            # Identificar melhor e pior critério
             if tecnico["criterios"]:
                 melhor_criterio = max(
                     tecnico["criterios"], key=lambda x: x["nota_media"]
@@ -228,27 +226,9 @@ class NotaPorTecnicoView(generics.ListAPIView):
                     "nota_media": pior_criterio["nota_media"],
                 }
 
-            # Atualizar totais do grupo após processar cada técnico
-            grupo_dict["nota_total"] = sum(
-                t["nota_total"] for t in grupo_dict["tecnicos"]
-            )
-            grupo_dict["total_avaliacoes"] = sum(
-                t["total_avaliacoes"] for t in grupo_dict["tecnicos"]
-            )
-            grupo_dict["total_tickets"] = sum(  # Novo cálculo
+            # Atualizar total de tickets do grupo
+            grupo_dict["total_tickets"] = sum(
                 t["total_avaliacoes"] for t in grupo_dict["tecnicos"]
             )
 
-            # Calcular a média do grupo como a média das médias dos técnicos
-            tecnicos_com_avaliacoes = [
-                t for t in grupo_dict["tecnicos"] if t["total_avaliacoes"] > 0
-            ]
-            if tecnicos_com_avaliacoes:
-                grupo_dict["nota_media"] = sum(
-                    t["nota_media"] for t in tecnicos_com_avaliacoes
-                ) / len(tecnicos_com_avaliacoes)
-            else:
-                grupo_dict["nota_media"] = 0
-
-        # Remover todo o código de estatísticas_por_mes e estatisticas_por_grupo_mes
         return resultado_final

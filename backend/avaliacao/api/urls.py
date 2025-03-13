@@ -45,4 +45,14 @@ urlpatterns = [
         views.CriarAvaliacaoCompletaView.as_view(),
         name="criar-avaliacao-save",
     ),
+    path(
+        "ranking-mensal/",
+        views.RankingMensalView.as_view(),
+        name="ranking-mensal",
+    ),
+    path(
+        "ranking-anual/",
+        views.RankingAnualView.as_view(),
+        name="ranking-anual",
+    ),
 ]

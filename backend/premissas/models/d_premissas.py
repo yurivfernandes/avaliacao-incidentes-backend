@@ -12,6 +12,9 @@ class Premissas(models.Model):
     qtd_incidents = models.IntegerField(
         help_text="Quantidade de incidentes a serem sorteados"
     )
+    meta_mensal = models.IntegerField(
+        default=70, help_text="Meta mensal dos analistas em pontos"
+    )
 
     def __str__(self):
         return f"{self.assignment.dv_assignment_group} - {self.qtd_incidents} incidentes"
