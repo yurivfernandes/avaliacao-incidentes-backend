@@ -20,7 +20,7 @@ class LoadAssignmentGroup:
         self.assignment_group_data = None
 
     def run(self) -> Dict:
-        """Executa o processo completo de carregamento"""
+        """Executa o processo completo de carregamento."""
         self.extract_data()
         self.load()
         return {
