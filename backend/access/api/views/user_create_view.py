@@ -45,6 +45,7 @@ class UserCreateView(APIView):
                     is_tecnico=request.data.get("is_tecnico", True),
                     is_ativo=True,
                     first_access=True,
+                    empresa_id=request.data.get("empresa"),
                 )
 
                 # Associar grupos após criar o usuário

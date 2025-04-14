@@ -1,5 +1,6 @@
-from access.models import User
 from rest_framework import serializers
+
+from ...models import User
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -18,6 +19,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "is_gestor",
             "is_tecnico",
             "is_ativo",
+            "empresa",
         ]
 
     def get_assignment_groups(self, obj):

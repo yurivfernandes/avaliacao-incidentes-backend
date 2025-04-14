@@ -30,6 +30,13 @@ class User(AbstractUser):
         on_delete=models.SET_NULL,
         related_name="created_users",
     )
+    empresa = models.ForeignKey(
+        "access.Empresa",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="usuarios",
+    )
 
     # Sobrescrevendo o método save para usar is_active como is_ativo
     def save(self, *args, **kwargs):

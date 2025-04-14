@@ -32,6 +32,8 @@ class ProfileView(APIView):
                 "is_staff": user.is_staff,
                 "is_ativo": user.is_ativo,
                 "first_access": user.first_access,
+                "empresa": user.empresa_id,
+                "empresa_nome": user.empresa.nome if user.empresa else None,
             }
         )
 

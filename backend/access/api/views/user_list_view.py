@@ -1,10 +1,10 @@
-from access.models import User
 from django.db.models import Q
 from rest_framework import filters, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from ...models import User
 from ..permissions import IsStaffOrGestor
 from ..serializers import UserListSerializer
 
