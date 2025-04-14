@@ -7,6 +7,7 @@ from .assignment_group_serializer import AssignmentGroupSerializer
 class UserSerializer(serializers.ModelSerializer):
     assignment_groups = AssignmentGroupSerializer(many=True, read_only=True)
     empresa_nome = serializers.SerializerMethodField()
+    empresa_id = serializers.IntegerField(source="empresa.id", allow_null=True)
 
     class Meta:
         model = User
@@ -19,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
             "is_tecnico",
             "is_active",
             "assignment_groups",
-            "empresa",
+            "empresa_id",
             "empresa_nome",
         )
 

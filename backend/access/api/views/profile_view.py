@@ -75,6 +75,7 @@ class ProfileView(APIView):
                 "is_ativo",
                 "is_staff",
                 "first_access",
+                "empresa_id",  # Adicionando empresa_id aos campos permitidos
             ]
 
             for field in allowed_fields:
@@ -84,6 +85,11 @@ class ProfileView(APIView):
                         field in ["is_gestor", "is_tecnico"]
                         and not request.user.is_staff
                     ):
+                        continue
+
+                    # Tratamento especial para empresa_id
+                    if field == "empresa_id":
+                        user.empresa_id = request.data.get("empresa_id")
                         continue
 
                     setattr(user, field, request.data[field])

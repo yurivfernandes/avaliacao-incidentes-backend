@@ -5,6 +5,8 @@ from ...models import User
 
 class UserListSerializer(serializers.ModelSerializer):
     assignment_groups = serializers.SerializerMethodField()
+    empresa_id = serializers.IntegerField(source="empresa.id", allow_null=True)
+    empresa = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -19,6 +21,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "is_gestor",
             "is_tecnico",
             "is_ativo",
+            "empresa_id",
             "empresa",
         ]
 
@@ -30,3 +33,6 @@ class UserListSerializer(serializers.ModelSerializer):
             }
             for group in obj.assignment_groups.all()
         ]
+
+    def get_empresa(self, obj):
+        return obj.empresa.nome if obj.empresa else None
