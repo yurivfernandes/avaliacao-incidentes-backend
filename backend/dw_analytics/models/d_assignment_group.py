@@ -7,6 +7,13 @@ class AssignmentGroup(models.Model):
         help_text="Nome da fila de atendimento",
     )
     status = models.BooleanField(default=True)
+    empresa = models.ForeignKey(
+        "access.Empresa",
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        default=1,
+    )
 
     def __str__(self):
         return self.dv_assignment_group

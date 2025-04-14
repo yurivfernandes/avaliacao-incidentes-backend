@@ -24,17 +24,18 @@ class UserListView(generics.ListAPIView):
         search = self.request.query_params.get("search", "")
 
         if self.request.user.is_gestor and not self.request.user.is_staff:
-            # Gestor só vê usuários que compartilham pelo menos uma fila com ele
+            # Gestor só vê usuários que compartilham a mesma empresa e pelo menos uma fila com ele
             gestor_groups = self.request.user.assignment_groups.all()
+            gestor_empresa = self.request.user.empresa
+
             queryset = queryset.filter(
                 assignment_groups__in=gestor_groups,
+                empresa=gestor_empresa,
                 is_staff=False,  # Gestor não pode ver usuários staff
             ).distinct()
 
-        # Aplicar busca se houver termo de pesquisa
         if search:
             if self.request.user.is_staff:
-                # Staff pode buscar em todos os campos
                 queryset = queryset.filter(
                     Q(username__icontains=search)
                     | Q(full_name__icontains=search)
@@ -43,7 +44,6 @@ class UserListView(generics.ListAPIView):
                     )
                 ).distinct()
             else:
-                # Gestor só busca nos campos básicos
                 queryset = queryset.filter(
                     Q(username__icontains=search)
                     | Q(full_name__icontains=search)

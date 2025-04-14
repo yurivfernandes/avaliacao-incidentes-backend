@@ -14,9 +14,19 @@ class AssignmentGroupListView(APIView):
     def get(self, request):
         page_number = request.query_params.get("page", 1)
         search_term = request.query_params.get("search", "")
-        assignment_groups = AssignmentGroup.objects.filter(
-            dv_assignment_group__icontains=search_term
-        )
+
+        # Filtra as filas baseado no tipo de usuário
+        if request.user.is_staff:
+            assignment_groups = AssignmentGroup.objects.filter(
+                dv_assignment_group__icontains=search_term
+            )
+        else:
+            # Usuário normal só vê as filas da empresa dele
+            assignment_groups = AssignmentGroup.objects.filter(
+                empresa=request.user.empresa,
+                dv_assignment_group__icontains=search_term,
+            )
+
         paginator = Paginator(assignment_groups, 10)
         page_obj = paginator.get_page(page_number)
         serializer = AssignmentGroupSerializer(page_obj, many=True)
