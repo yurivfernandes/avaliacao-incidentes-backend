@@ -50,15 +50,19 @@ class SortedTicketListView(generics.ListAPIView):
             )
 
         user = self.request.user
-        if not user.is_staff and user.is_gestor:
+        if user.is_staff:
+            return queryset.order_by("-mes_ano", "incident__number")
+        elif user.is_gestor:
             # Filtra por grupos do gestor
-            queryset = queryset.filter(
-                incident__assignment_group__in=user.assignment_groups.values_list(
-                    "id", flat=True
-                )
+            assignment_group_ids = list(
+                map(str, user.assignment_groups.values_list("id", flat=True))
             )
-
-        return queryset.order_by("-mes_ano", "incident__number")
+            return queryset.filter(
+                incident__assignment_group__in=assignment_group_ids
+            ).order_by("-mes_ano", "incident__number")
+        else:
+            # Usuários que não são staff nem gestores não têm permissão
+            return SortedTicket.objects.none()
 
     def get_paginated_response(self, data):
         assert self.paginator is not None

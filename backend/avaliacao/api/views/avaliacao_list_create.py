@@ -40,8 +40,14 @@ class AvaliacaoListView(generics.ListAPIView):
             pass
         elif user.is_gestor:
             if user.assignment_groups.exists():
+                assignment_group_ids = list(
+                    map(
+                        str,
+                        user.assignment_groups.values_list("id", flat=True),
+                    )
+                )
                 queryset = queryset.filter(
-                    incident__assignment_group__in=user.assignment_groups.all()
+                    incident__assignment_group__in=assignment_group_ids
                 )
             else:
                 return Avaliacao.objects.none()

@@ -19,3 +19,22 @@ class AvaliacaoDetailView(generics.RetrieveUpdateAPIView):
             "notacriterioconversao_set__criterio",
             "notacriterioconversao_set__conversao",
         )
+        user = self.request.user
+
+        if user.is_staff:
+            return queryset
+        elif user.is_gestor:
+            if user.assignment_groups.exists():
+                assignment_group_ids = list(
+                    map(
+                        str,
+                        user.assignment_groups.values_list("id", flat=True),
+                    )
+                )
+                return queryset.filter(
+                    incident__assignment_group__in=assignment_group_ids
+                )
+            else:
+                return Avaliacao.objects.none()
+        else:
+            return queryset.filter(incident__resolved_by=user.id)
