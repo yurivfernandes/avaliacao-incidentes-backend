@@ -32,7 +32,7 @@ urlpatterns = [
     ),
     path(
         "assignment-group/<int:pk>/",
-        views.AssignmentGroupListView.as_view(),
+        views.AssignmentGroupUpdateView.as_view(),
         name="assignment-group-detail",
     ),
     path(
