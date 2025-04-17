@@ -34,6 +34,10 @@ class AssignmentGroupListView(APIView):
             {"results": serializer.data, "num_pages": paginator.num_pages}
         )
 
+
+class AssignmentGroupUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def patch(self, request, pk):
         # Verificar se o usuário é staff
         if not request.user.is_staff:

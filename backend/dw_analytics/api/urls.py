@@ -60,4 +60,9 @@ urlpatterns = [
         views.IncidentFieldsView.as_view(),
         name="incident-fields",
     ),
+    path(
+        "assignment-group/create/",
+        views.AssignmentGroupCreateView.as_view(),
+        name="assignment-group-create",
+    ),
 ]

@@ -1,3 +1,4 @@
+from .assignment_group_create_view import AssignmentGroupCreateView
 from .assignment_group_views import AssignmentGroupListView
 from .incident_fields_views import IncidentFieldsView
 from .load_assignment_group_views import LoadAssignmentGroupView
