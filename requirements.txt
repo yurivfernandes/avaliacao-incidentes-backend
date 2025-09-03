@@ -34,3 +34,5 @@ python-dotenv==1.0.1
 
 # Biblioteca para validação de documentos brasileiros
 validate-docbr==1.10.0
+# Task Queue
+celery==5.2.7
