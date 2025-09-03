@@ -12,13 +12,27 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
+import dj_database_url
 
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
 
-DEBUG = True
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv(
+    "SECRET_KEY", 
+    "django-insecure-0a@8k^8+@@e@onh#zjl8-eokyk9x*+go=ud@cp+nm%jnn6euq&"
+)
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,18 +42,35 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (
+SECRET_KEY = os.getenv(
+    "SECRET_KEY", 
     "django-insecure-0a@8k^8+@@e@onh#zjl8-eokyk9x*+go=ud@cp+nm%jnn6euq&"
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
     "api.gamedesk.com.br",
     "localhost",
     "127.0.0.1",
+    "0.0.0.0",
 ]
+
+# Adicionar hosts do Render automaticamente
+if os.getenv("RENDER"):
+    ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
+
+ALLOWED_HOSTS = [
+    "api.gamedesk.com.br",
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+]
+
+# Adicionar hosts do Render automaticamente
+if os.getenv("RENDER"):
+    ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
 
 
 # Application definition
@@ -99,7 +130,14 @@ WSGI_APPLICATION = "app.wsgi.application"
 
 
 DB_ENGINE = os.getenv("DB_ENGINE", "postgres")
-if DB_ENGINE == "sqlite":
+
+# Configuração do banco de dados
+if os.getenv("DATABASE_URL"):
+    # Se DATABASE_URL estiver presente (como no Render), use dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(os.getenv("DATABASE_URL"))
+    }
+elif DB_ENGINE == "sqlite":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -235,4 +273,20 @@ REST_FRAMEWORK = {
 # Configurações do Django Filter
 FILTERS_DEFAULT_LOOKUP_EXPR = "icontains"
 
-CSRF_TRUSTED_ORIGINS = ["https://api-avaliacao-incidentes.gestri.com.br"]
+CSRF_TRUSTED_ORIGINS = [
+    "https://api-avaliacao-incidentes.gestri.com.br"
+]
+
+# Adicionar domínios do Render aos CSRF_TRUSTED_ORIGINS
+if os.getenv("RENDER"):
+    render_external_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+    if render_external_hostname:
+        CSRF_TRUSTED_ORIGINS.append(f"https://{render_external_hostname}")
+
+# Configurações de segurança para produção
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
