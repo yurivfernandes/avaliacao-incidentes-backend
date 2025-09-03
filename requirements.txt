@@ -20,6 +20,7 @@ polars==1.30.0
 # Authentication
 PyJWT
 
+
 # HTTP & Networking
 certifi==2024.2.2
 charset-normalizer==3.3.2
