@@ -4,5 +4,8 @@
 # Navegar para o diretório do backend
 cd backend
 
-# Iniciar a aplicação com gunicorn
-gunicorn --bind 0.0.0.0:$PORT app.wsgi:application
+# Usar a variável PORT definida pelo ambiente, com fallback para 8000
+PORT="${PORT:-8000}"
+
+# Iniciar a aplicação com gunicorn (exec substitui o shell, bom para sinais)
+exec gunicorn --bind 0.0.0.0:"$PORT" app.wsgi:application --workers 3 --threads 2 --timeout 120
