@@ -106,19 +106,32 @@ DB_ENGINE = os.getenv("DB_ENGINE", "postgres")
 
 
 DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME"),
-            "USER": os.getenv("DB_USER"),
-            "PASSWORD": os.getenv("DB_PASSWORD"),
-            "HOST": os.getenv("DB_HOST"),
-            "PORT": os.getenv("DB_PORT", "5432"),
-            "OPTIONS": {
-                "options": "-c statement_timeout=10000",
-                "target_session_attrs": "read-write",
-            },
-        }
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+        "OPTIONS": {
+            "options": "-c statement_timeout=10000",
+            "target_session_attrs": "read-write",
+        },
     }
+}
+
+# If a single DATABASE_URL is provided (e.g. by Render or Supabase), prefer it.
+# This will parse the URL and set proper SSL mode and connection pooling.
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    parsed = dj_database_url.parse(
+        DATABASE_URL, conn_max_age=600, ssl_require=True
+    )
+    # Ensure SSL mode is required for remote DBs (Supabase, Render Postgres, etc.)
+    opts = parsed.get("OPTIONS", {}) or {}
+    opts.setdefault("sslmode", "require")
+    parsed["OPTIONS"] = opts
+    DATABASES["default"].update(parsed)
 # Configuração PostgreSQL (comentada)
 # DATABASES = {
 #     "default": {
