@@ -34,33 +34,6 @@ SECRET_KEY = os.getenv(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-0a@8k^8+@@e@onh#zjl8-eokyk9x*+go=ud@cp+nm%jnn6euq&",
-)
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-
-ALLOWED_HOSTS = [
-    "api.gamedesk.com.br",
-    "localhost",
-    "127.0.0.1",
-    "0.0.0.0",
-]
-
-# Adicionar hosts do Render automaticamente
-if os.getenv("RENDER"):
-    ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
-
 ALLOWED_HOSTS = [
     "api.gamedesk.com.br",
     "localhost",

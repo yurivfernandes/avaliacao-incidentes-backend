@@ -1,11 +1,4 @@
-# Core # Database
-psycopg[binary]==3.1.18
-mssql-django
-redis==5.0.1
-dj-database-url==2.1.0
-
-# WSGI Server
-gunicorn==21.2.0I
+# Core & API
 Django==4.2.10
 djangorestframework==3.14.0
 django-filter==23.5
@@ -13,9 +6,10 @@ django-cors-headers==4.3.1
 djangorestframework-simplejwt==5.3.1
 
 # Database
-psycopg2-binary==2.9.7
+psycopg[binary]==3.1.18
 mssql-django
 redis==5.0.1
+dj-database-url==2.1.0
 
 # WSGI Server
 gunicorn==21.2.0
