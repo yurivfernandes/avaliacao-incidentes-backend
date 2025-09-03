@@ -11,7 +11,7 @@ mssql-django
 redis==5.0.1
 
 # Data Processing
-polars==0.19.3
+polars==1.30.0
 
 # Authentication
 PyJWT
