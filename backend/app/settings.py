@@ -119,7 +119,6 @@ DATABASES = {
             },
         }
     }
-
 # Configuração PostgreSQL (comentada)
 # DATABASES = {
 #     "default": {
