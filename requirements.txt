@@ -16,6 +16,7 @@ gunicorn==21.2.0
 
 # Data Processing
 polars==1.30.0
+
 # Authentication
 PyJWT
 
