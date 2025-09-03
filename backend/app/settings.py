@@ -104,26 +104,8 @@ WSGI_APPLICATION = "app.wsgi.application"
 
 DB_ENGINE = os.getenv("DB_ENGINE", "postgres")
 
-# Configuração do banco de dados
-if os.getenv("DATABASE_URL"):
-    # Se DATABASE_URL estiver presente (como no Render), use dj_database_url
-    DATABASES = {"default": dj_database_url.parse(os.getenv("DATABASE_URL"))}
-    # Adicionar configurações extras para melhor estabilidade
-    DATABASES['default']['OPTIONS'] = {
-        'sslmode': 'require',
-        'connect_timeout': 30,
-        'options': '-c default_transaction_isolation=read_committed'
-    }
-    DATABASES['default']['CONN_MAX_AGE'] = 60
-elif DB_ENGINE == "sqlite":
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": os.getenv("DB_NAME", BASE_DIR / "db.sqlite3"),
-        }
-    }
-else:
-    DATABASES = {
+
+DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.getenv("DB_NAME"),
@@ -132,11 +114,9 @@ else:
             "HOST": os.getenv("DB_HOST"),
             "PORT": os.getenv("DB_PORT", "5432"),
             "OPTIONS": {
-                "sslmode": "require",
-                "connect_timeout": 30,
-                "options": "-c default_transaction_isolation=read_committed"
+                "options": "-c statement_timeout=10000",
+                "target_session_attrs": "read-write",
             },
-            "CONN_MAX_AGE": 60,
         }
     }
 
