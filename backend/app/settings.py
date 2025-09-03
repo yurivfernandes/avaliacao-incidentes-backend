@@ -118,7 +118,7 @@ DATABASES = {
             "target_session_attrs": "read-write",
         },
     }
-}
+} 
 
 # If a single DATABASE_URL is provided (e.g. by Render or Supabase), prefer it.
 # This will parse the URL and set proper SSL mode and connection pooling.
