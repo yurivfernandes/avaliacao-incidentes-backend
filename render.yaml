@@ -3,7 +3,7 @@ services:
     name: avaliacao-incidentes-backend
     env: python
     buildCommand: "./build.sh"
-    startCommand: "./start.sh"
+  startCommand: "bash ./start.sh"
     envVars:
       - key: DEBUG
         value: false
