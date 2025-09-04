@@ -9,7 +9,7 @@ services:
         value: false
       - key: RENDER
         value: true
-      - key: PORT
+      - key: PORT 
         value: 8000
       - key: DATABASE_URL
         fromDatabase:
