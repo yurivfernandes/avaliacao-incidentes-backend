@@ -22,3 +22,4 @@ class Conversao(models.Model):
         db_table = "d_conversao"
         verbose_name = "Conversão"
         verbose_name_plural = "Conversões"
+        verbose_name_plural = "Conversões"
